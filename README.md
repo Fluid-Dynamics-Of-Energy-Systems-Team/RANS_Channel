@@ -1,7 +1,6 @@
 #**************************************************************************
-#
-# RANS solver for fully developed turbulent channel with varying properties
-# 
+//  RANS solver for fully developed turbulent channel with varying properties
+//
 #       Created on: Nov 22, 2017
 #          Authors: Rene Pecnik         (R.Pecnik@tudelft.nl)
 #                   Gustavo J. Otero R. (G.J.OteroRodriguez@tudelft.nl)
