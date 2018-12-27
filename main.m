@@ -149,12 +149,12 @@ u    = zeros(n,1);
 T    = ones(n,1);
 
 % turbulent scalars
-k    = 0.1*ones(n,1); k(1) = 0.0; k(n) = 0.0;
+k    = 0.1*ones(n,1);
 e    = 0.001*ones(n,1);
 v2   = 1/3*k;
 om   = ones(n,1);
 mut  = zeros(n,1);
-nuSA = ones(n,1)/ReTau; nuSA(1) = 0.0; nuSA(n) = 0.0;
+nuSA = ones(n,1)/ReTau;
 
 %--------------------------------------------------------------------------
 %

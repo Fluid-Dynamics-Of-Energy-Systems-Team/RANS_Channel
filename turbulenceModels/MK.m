@@ -145,6 +145,9 @@ function [k,e,mut] = MK(u,k,e,r,mu,ReT,mesh,compFlag)
     % Right-hand-side
     b  = -Pk(2:n-1);
     
+    % Wall boundary conditions
+    k(1) = 0.0;     k(n) = 0.0;
+
     % Solve TKE
     k = solveEq(k.*fs, A, b, underrelaxK)./fs;
     k(2:n-1) = max(k(2:n-1), 1.e-12);

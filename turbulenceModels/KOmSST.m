@@ -160,6 +160,9 @@ function [k,om,mut,CDkom,bF1,bF2] = KOmSST(u,k,om,r,mu,mesh,compFlag)
     Pk = min(mut.*strMag.^2, 20*betaStar*k.*r.*om);
     b  = -Pk(2:n-1);
     
+    % Wall boundary conditions
+    k(1) = 0.0;     k(n) = 0.0;
+    
     % Solve
     k = solveEq(k.*fs, A, b, underrelaxK)./fs;
     k(2:n-1) = max(k(2:n-1), 1.e-12);

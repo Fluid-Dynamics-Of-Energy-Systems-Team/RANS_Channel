@@ -130,6 +130,9 @@ function [nuSA,mut] = SA(u,nuSA,r,mu,mesh,compFlag)
     Pk = cb1*Shat(2:n-1).*nuSA(2:n-1);
     b  = - Pk - cb2* inv_cb3*fd(2:n-1).*(dnudy(2:n-1).^2) - drho(2:n-1);
 
+    % Wall boundary conditions
+    nuSA(1) = 0.0;     nuSA(n) = 0.0;
+
     % Solve
     nuSA = solveEq(nuSA,A,b,underrelaxNUSA);
     nuSA(2:n-1) = max(nuSA(2:n-1), 1.e-12);

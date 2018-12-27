@@ -122,6 +122,9 @@ function [k,e,v2,mut] = V2F(u,k,e,v2,r,mu,mesh,compFlag)
     % Right-hand-side
     b = -r(2:n-1).*k(2:n-1).*f(2:n-1);
     
+    % Wall boundary conditions
+    v2(1) = 0.0;     v2(n) = 0.0;
+    
     % Solve
     v2 = solveEq(v2.*fs,A,b,underrelaxV2)./fs;
     v2(2:n-1) = max(v2(2:n-1), 1.e-12);
@@ -183,6 +186,9 @@ function [k,e,v2,mut] = V2F(u,k,e,v2,r,mu,mesh,compFlag)
     % Right-hand-side
     b = -Pk(2:n-1);
     
+    % Wall boundary conditions
+    k(1) = 0.0;     k(n) = 0.0;
+
     % Solve
     k = solveEq(k.*fs, A, b, underrelaxK)./fs;
     k(2:n-1) = max(k(2:n-1), 1.e-12);
