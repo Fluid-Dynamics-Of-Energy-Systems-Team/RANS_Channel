@@ -142,9 +142,15 @@ function [k,om,mut,CDkom,bF1,bF2] = KOmSST(u,k,om,r,mu,mesh,compFlag)
     
 	% effective viscosity
     switch compFlag
-        case 1;    mueff = (mu + sigma_k.*mut)./sqrt(r);   fs = r;   fd = 1./sqrt(r);
-        case 2;    mueff = (mu + sigma_k.*mut)./r;         fs = r;   fd = ones(n,1);
-        otherwise; mueff = mu + sigma_k.*mut;        fs = ones(n,1);   fd = ones(n,1);
+        case 1;    mueff = (mu + sigma_k.*mut)./sqrt(r);   
+                    fs = r;   
+                    fd = 1./sqrt(r);
+        case 2;    mueff = (mu + sigma_k.*mut)./r;         
+                    fs = r;   
+                    fd = ones(n,1);
+        otherwise; mueff = mu + sigma_k.*mut;       
+                    fs = ones(n,1);   
+                    fd = ones(n,1);
     end
        
     % diffusion matrix: mueff*d2()/dy2 + dmueff/dy d()/dy

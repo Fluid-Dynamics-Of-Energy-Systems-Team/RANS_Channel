@@ -110,7 +110,7 @@ ns = 1;
 %    * and the DNS data. The columns of the data are described in
 %      the header of the text file itself. 
 %
-filename = strcat('DNS/',casename,'.txt');
+filename = strcat('../DNS/',casename,'.txt');
 ReTau   = dlmread(filename, '', [38 1 38 1]);
 Pr      = dlmread(filename, '', [38 2 38 2]);
 expRho  = dlmread(filename, '', [38 3 38 3]);
