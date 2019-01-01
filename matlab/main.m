@@ -34,7 +34,7 @@ addpath('turbulenceModels');    % functions of the turbulence models
 % % constReTauStar ... constant semi-local Reynolds number, rho and mu variable
 % % gasLike        ... gas-like fluid behaviour
 % % liquidLike     ... liquid-like fluid behaviour
-casename = 'liquidLike';
+casename = 'gasLike';
 
 % -----  choose turbulence model  -----
 % 'Cess'... Cess, R.D., "A survery of the literature on heat transfer in 
@@ -49,14 +49,14 @@ casename = 'liquidLike';
 % 'V2F' ... Medic, G. and Durbin, P.A., "Towards improved prediction of heat 
 %           transfer on turbine blades", ASME, J. Turbomach. 2012.
 % 'no'  ... without turbulence model; laminar
-turbMod = 'V2F';
+turbMod = 'MK';
 
 % -----  compressible modification  -----
 % 0 ... Conventional models without compressible modifications
 % 1 ... Otero et al.
 % 2 ... Catris, S. and Aupoix, B., "Density corrections for turbulence
 %       models", Aerosp. Sci. Techn., 2000.  
-compMod = 0;
+compMod = 1;
 
 % -----  solve energy equation  ----- 
 % 0 ... energy eq not solved, density and viscosity taken from DNS
@@ -110,7 +110,7 @@ ns = 1;
 %    * and the DNS data. The columns of the data are described in
 %      the header of the text file itself. 
 %
-filename = strcat('../DNS/',casename,'.txt');
+filename = strcat('../DNS_Data/',casename,'.txt');
 ReTau   = dlmread(filename, '', [38 1 38 1]);
 Pr      = dlmread(filename, '', [38 2 38 2]);
 expRho  = dlmread(filename, '', [38 3 38 3]);
