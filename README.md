@@ -18,6 +18,7 @@ They are available as
 
 * matlab
 * Anaconda 
+* python3.5 or higher. Python needs to include the following: numpy, matplotlib, scipy, jupyter
 
 
 ## Execution
