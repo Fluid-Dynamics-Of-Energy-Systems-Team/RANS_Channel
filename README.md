@@ -17,7 +17,7 @@ They are available as
 ## Requirements
 
 * matlab
-* Anaconda 
+* Anaconda, python3.5 
 
 
 ## Execution
