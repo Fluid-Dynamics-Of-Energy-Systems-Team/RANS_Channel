@@ -52,6 +52,8 @@ def finiteDiffCoeff(x,k):
 class Mesh:
     def __init__(self, n, H, fact, ns):
 
+        self.nPoints = n
+        
         di = 1.0/(n-1)
         i = (np.linspace(0,n-1,n))/(n-1) - 0.5
         

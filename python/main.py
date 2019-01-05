@@ -9,29 +9,28 @@
 #                   Gustavo J. Otero R. (G.J.OteroRodriguez@tudelft.nl)
 #                   Process & Energy Department, Faculty of 3mE
 #                   Delft University of Technology, the Netherlands.
-#       Literature: Otero et al., 2017. Heat and fluid flow
-# Last modified on: Jan 07, 2018
+#       Literature: Otero et al., 2018. Heat and fluid flow
+# Last modified on: Jan 04, 2019
 #               By: Rene Pecnik 
 #**************************************************************************
 
 
-
+import matplotlib
+matplotlib.use("TkAgg")            ####### added for MAC
 import matplotlib.pyplot as plt
-import numpy as np
+matplotlib.rcParams.update({'font.size': 14})
+matplotlib.rcParams['figure.figsize'] = [16,10]
 
+import numpy as np
 
 from mesh import Mesh
 from solveEqn import solveEqn
+from solveRANS import solveRANS
 
-from Cess import Cess
-from SA import SA
-from MK import MK
-from KOmSST import KOmSST
-from V2F import V2F
+from velTransSLS import velTransSLS
+from velTransVD import velTransVD
 
-
-
-
+import linecache
 
 ## ------------------------------------------------------------------------
 #
@@ -58,19 +57,17 @@ casename = 'liquidLike'
 # 'V2F' ... Medic, G. and Durbin, P.A., "Towards improved prediction of heat 
 #           transfer on turbine blades", ASME, J. Turbomach. 2012.
 # 'no'  ... without turbulence model; laminar
-turbMod = 'V2F'
+# turbModel
 
 # -----  compressible modification  -----
 # 0 ... Conventional models without compressible modifications
 # 1 ... Otero et al.
-# 2 ... Catris, S. and Aupoix, B., "Density corrections for turbulence
-#       models", Aerosp. Sci. Techn., 2000.  
-compMod = 0
+# compressCorrection
 
-# -----  solve energy equation  ----- 
+# ----mesh-  solve energy equation  ----- 
 # 0 ... energy eq not solved, density and viscosity taken from DNS
 # 1 ... energy eq solved
-solveEnergy = 0
+# solveTemperatureEq
 
 
 ## ------------------------------------------------------------------------
@@ -82,157 +79,105 @@ n = 100          # number of mesh points
 fact = 6        # streching factor and stencil for finite difference discretization
 mesh = Mesh(n, height, fact, 1) 
 
+file = "../DNS_data/"+ casename + ".txt" # chose case
 
+print("name of the file ", file)
 
-ReTau = 500
+# get parameters from DNS or set these parameters (they must be defined)
+line = linecache.getline(file, 39)[1:].split()       
+ReTau  = float(line[0]); print("ReTau  = ", ReTau)   # Reynolds number
+Pr     = float(line[1]); print("Pr     = ", Pr)      # Prandtl number
+expRho = float(line[2]); print("expRho = ", expRho)  # temperature exponent for density 
+expMu  = float(line[3]); print("expMu  = ", expMu)   # temperature exponent for viscosity 
+expLam = float(line[4]); print("expLam = ", expLam)  # temperature exponent for conductivity 
+Qvol   = float(line[5]); print("Qvol   = ", Qvol)    # volmetric heating
 
+# load dns data
+DNS = np.loadtxt(file,skiprows=88)
 
+# interpolate density from DNS on RANS mesh
+r = np.interp(np.minimum(mesh.y, mesh.y[-1]-mesh.y) , DNS[:,0], DNS[:,5])
+r[0] = r[-1] = 1.0
+
+# interpolate viscosity from DNS on RANS mesh
+mu = np.interp(np.minimum(mesh.y, mesh.y[-1]-mesh.y) , DNS[:,0], DNS[:,6])
+mu[0] = mu[-1] = 1.0/ReTau
 
 ## ------------------------------------------------------------------------
-#
-#  Solve RANS 
-#
-# initialize vectors
-u    = np.zeros(n)
-r    = np.ones(n)
-mu   = np.ones(n)/ReTau
-T    = np.ones(n)
+# solve RANS 1 (model 1)
+turbModel          = "Cess"    # turbulence model
+compressCorrection = 0       # corrections for varying properties
+solveTemperatureEq = 0       # if not temp equation solved then use rho and mu from DNS 
+u1,T1,r1,mu1,mut1,k1,e1,om1 = solveRANS(r,mu,mesh,turbModel,compressCorrection,solveTemperatureEq,Pr,ReTau,expLam,expRho,expMu,Qvol)
 
-# turbulent scalars
-k    = 0.1*np.ones(n)
-k[0] = 0.0
-k[n-1] = 0.0
-
-e    = 0.001*np.ones(n)
-v2   = 1/3*k
-om   = np.ones(n)
-mut  = np.zeros(n)
-nuSA = np.ones(n)/ReTau
-nuSA[0] = 0.0
-nuSA[n-1] = 0.0
-
-#--------------------------------------------------------------------------
-#
-#       Iterate RANS equations
-#
-nmax   = 4000
-tol    = 1.0e-8      # iteration limits
-nResid = 50       # interval to print residuals
-
-residual = 1.0e20
-iter = 0
-
-while residual > tol and iter<nmax:
-#while iter<nmax:
-    
-    # solve temperature:  d/dy[(lam+mut/PrT)dTdy] = -VolQ/ReTau/Pr
-#    if (solveEnergy == 1)
-#
-#        Prt = ones(n,1);    # simply set turbulent Prandtl number to 1
-#
-#        # effective conductivity: lambda_laminar + mut/PrT
-#        lam = (T.^expLam)/(ReTau*Pr);
-#        lamEff = lam + (mut./Prt);
-#
-#        # diffusion matrix: lamEff*d2phi/dy2 + dlamEff/dy dphi/dy
-#        A =   bsxfun(@times,          lamEff, MESH.d2dy2) ... 
-#            + bsxfun(@times, MESH.ddy*lamEff, MESH.ddy);
-#
-#        # Isothermal BC
-#        T(1) = 1;
-#        T(n) = 1;
-#
-#        # source term
-#        b = -VolQ*ones(n-2,1)/(ReTau*Pr);
-#
-#        # Solve
-#        T = solveEq(T,A,b,0.95);
-#        
-#        # calculate density and viscosity from temperature
-#         r =  T.^expRho;
-#        mu = (T.^expMu)/ReTau;
-    
-
-    # Solve turbulence model to calculate eddy viscosity 
-    if   turbMod == 'V2F':       k,e,v2,mut = V2F(u,k,e,v2,r,mu,mesh,compMod)
-    elif turbMod == 'MK':        k,e,mut    = MK(u,k,e,r,mu,ReTau,mesh,compMod)
-    elif turbMod == 'SST':       k,om,mut   = KOmSST(u,k,om,r,mu,mesh,compMod)
-    elif turbMod == 'SA':        nuSA,mut   = SA(u,nuSA,r,mu,mesh,compMod)
-    elif turbMod == 'Cess':      mut        = Cess(r, mu, ReTau, mesh, compMod)
-    else:	                        mut        = np.zeros(n)
-
-
-    # Solve momentum equation:  0 = d/dy[(mu+mut)dudy] - rho fx
-    mueff = mu + mut
-       
-    # diffusion matrix: mueff*d2phi/dy2 + dmueff/dy dphi/dy    
-    A = np.einsum('i,ij->ij',mueff, mesh.d2dy2) + np.einsum('i,ij->ij', mesh.ddy@mueff, mesh.ddy)
-    
-    # Right hand side
-    b = -np.ones(n-2)
-        
-    # Solve
-    u_old = u.copy()
-    u = solveEqn(u,A,b,1)
-    residual = np.linalg.norm(u-u_old)
-    
-    # Printing residuals
-    if (iter % nResid == 0):
-        print(iter, residual)
-
-    iter = iter + 1
-    
-    
-print(iter, residual)
-
-
+# solve RANS 2 (model 2)
+turbModel          = "Cess"    # turbulence model
+compressCorrection = 1       # corrections for varying properties
+solveTemperatureEq = 0       # if not temp equation solved then use rho and mu from DNS 
+u2,T2,r2,mu2,mut2,k2,e2,om2 = solveRANS(r,mu,mesh,turbModel,compressCorrection,solveTemperatureEq,Pr,ReTau,expLam,expRho,expMu,Qvol)
 
     
 ## ------------------------------------------------------------------------
-# plotting the velocity profiles
+# plot results
+#    
+n = mesh.nPoints
 
-# first calculate uplus (not really necessary, since utau = 1.0 already)
+# model 1
+ypl1,uvd1 = velTransVD(u1,r1,ReTau,mesh)      # note, u is already u+ due to normalization
+yst1,ust1 = velTransSLS(u1,r1,mu1,ReTau,mesh)
 
-y      = mesh.y
-dudy   = mesh.ddy@u
-utau   = np.sqrt(mu[0]*dudy[0]/r[0])
-upl    = u/utau
+# model 2
+ypl2,uvd2 = velTransVD(u2,r2,ReTau,mesh)      # note, u is already u+ due to normalization
+yst2,ust2 = velTransSLS(u2,r2,mu2,ReTau,mesh)
 
-
-
-#ReTst  = ReTau*sqrt(r/r(1))./(mu/mu(1));      # semi-local Reynolds number
-ypl    = y*ReTau                              # yplus (based on wall units)
-#yst    = y.*ReTst                            # ystar (based on semi-local scales)
-
+ax = plt.subplot(2,3, 1)
 # analytic results for viscous sub-layer
-yp = np.linspace(0.1,13,100)
-plt.semilogx(yp,yp,'k-.')
+ypLam = np.linspace(0.2,13,100); 
+ax.semilogx(ypLam,ypLam,'k-.')
     
 # semi-empirical result for log-layer
-yp = np.linspace(0.9,3,20)
-plt.semilogx(np.power(10, yp), 1/0.41*np.log(np.power(10, yp))+5.0,'k-.')
+ypTurb = np.linspace(0.9,3,20); 
+upTurb = 1/0.41*np.log(np.power(10, ypTurb))+5.2
+ax.semilogx(np.power(10, ypTurb), upTurb,'k-.')
 
+#########
+# model solution
+line1 = ax.semilogx(ypl1[1:n//2],u1[1:n//2], 'r-',linewidth=3)
+line2 = ax.semilogx(ypl2[1:n//2],u2[1:n//2], 'b--',linewidth=3)
+line3 = ax.plot(DNS[::3,1],DNS[::3,8],'o',fillstyle='none',linewidth=4, markersize=8)
+plt.xlabel('$y^+$', fontsize=16); plt.ylabel('$u^+$', fontsize=16);
+plt.legend(('$y^+$','log','model 1','model 2', 'DNS'))
 
-# calculate van Driest velocity, uvd = int_0^upl (sqrt(r) dupl)
-#uvd = velTransVD(upl,r)
-    
-# calculate semi-locally scaled velocity, ustar (see Patel et al. JFM 2017)
-#[ust] = velTransSLS(uvd, ReTst, MESH); 
+plt.subplot(2,3, 2)
+plt.semilogx(ypLam,ypLam,'k-.'); plt.semilogx(np.power(10, ypTurb), upTurb,'k-.')
+plt.semilogx(ypl1[1:n//2],uvd1[1:n//2],'r-',linewidth=3)
+plt.semilogx(ypl2[1:n//2],uvd2[1:n//2],'b--',linewidth=3)
+plt.plot(DNS[::3,1],DNS[::3,10],'o',fillstyle='none',linewidth=4, markersize=8)
+plt.xlabel('$y^+$', fontsize=16); plt.ylabel('$u^{vD}$', fontsize=16);
 
-plt.semilogx(ypl[1:n//2],upl[1:n//2],linewidth=3) 
+plt.subplot(2,3, 3)
+plt.semilogx(ypLam,ypLam,'k-.'); plt.semilogx(np.power(10, ypTurb), upTurb,'k-.')
+plt.semilogx(yst1[1:n//2],ust1[1:n//2],'r-',linewidth=3)
+plt.semilogx(yst2[1:n//2],ust2[1:n//2],'b--',linewidth=3)
+plt.plot(DNS[::3,2],DNS[::3,11],'o',fillstyle='none',linewidth=4, markersize=8)
+plt.xlabel('$y^\star$', fontsize=16); plt.ylabel('$u^\star$', fontsize=16);
 
-plt.xlabel('$y^+$')
-plt.ylabel('$u^+$')
+plt.subplot(2,3, 4)
+plt.plot(mesh.y[0:n//2],r1[0:n//2],'r-',linewidth=3)
+plt.plot(mesh.y[0:n//2],r2[0:n//2],'b--',linewidth=3)
+plt.plot(DNS[::5,0],DNS[::5,5],'o',fillstyle='none',linewidth=4, markersize=8)
+plt.xlabel('$y$', fontsize=16); plt.ylabel('$rho$', fontsize=16);
 
+plt.subplot(2,3, 5)
+plt.plot(mesh.y[0:n//2],mu1[0:n//2]/mu[0],'r-',linewidth=3)
+plt.plot(mesh.y[0:n//2],mu2[0:n//2]/mu2[0],'b--',linewidth=3)
+plt.plot(DNS[::5,0],DNS[::5,6]/mu[0],'o',fillstyle='none',linewidth=4, markersize=8)
+plt.xlabel('$y$', fontsize=16); plt.ylabel('$\mu$', fontsize=16);
 
-## DNS results 
-#h2 = semilogx(DNSdata(:,3),DNSdata(:,13),'ko','LineWidth', 1, 'MarkerSize', 8);
-#
-#legend([h2,h1],{'DNS', 'Model'}, 'Location','northwest');
-#xlabel( '$y^\star$');
-#ylabel( '$u^\star$');
-#set(gca,'fontsize', 18)
-#
-#    
-    
-    
+plt.subplot(2,3, 6)
+plt.plot(mesh.y[0:n//2],T1[0:n//2],'r-',linewidth=3)
+plt.plot(mesh.y[0:n//2],T2[0:n//2],'b--',linewidth=3)
+plt.plot(DNS[::5,0],DNS[::5,14],'o',fillstyle='none',linewidth=4, markersize=8)
+plt.xlabel('$y$', fontsize=16); plt.ylabel('$Temperature$', fontsize=16);
+
+plt.show()

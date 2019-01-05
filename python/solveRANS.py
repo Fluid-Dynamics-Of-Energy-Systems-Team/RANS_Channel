@@ -1,41 +1,20 @@
-#**************************************************************************
-#       function to solve linear system  [A].x = b
-#**************************************************************************
-# Inputs:
-#   x       variable to be solved
-#   A       coefficient matrix
-#   b       right hand side
-#   omega   under-relaxation parameter
-#
-# Output:
-#   x_new   updated x
-#
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan  4 14:14:16 2019
 
+@author: gjoterorodrigu
+"""
 
-def solveEqn(x,A,b,omega):
+def solveRANS(r_DNS,mu_DNS,mesh,turbModel,compressCorrection,solveTemperatureEq,Pr,ReTau,expLam,expRho,expMu,Qvol):
 
     import numpy as np
+    from solveTemperature import solveTemperature
+    from Cess import Cess
+    from SA import SA
+    from MK import MK
+    from SST import SST
+    from V2F import V2F
 
-    n = np.size(x)
-    x_new = x.copy()
-    
-    # add boundary conditions
-    b = b - x[0]*A[1:n-1,0] - x[n-1]*A[1:n-1,n-1]
-    
-    # perform under-relaxation
-    b[:] = b[:] + (1-omega)/omega * A.diagonal()[1:-1]*x[1:-1]
-    np.fill_diagonal(A, A.diagonal()/omega)
-    
-    # solve linear system
-    x_new[1:-1] = np.linalg.solve(A[1:-1, 1:-1], b)
-    return x_new
-    
-def solveRANS(r_DNS,mu_DNS): #(mesh,r_DNS,mu_DNS,compressCorrection,solveTemperatureEq,Pr,ReTau,expLam,expRho,expMu,Qvol):
-
-    import numpy as np
-    
-    n = mesh.nPoints
-    
     n    = mesh.nPoints
     u    = np.zeros(n)          # velocity 
     T    = np.ones(n)           # temperature 
@@ -59,7 +38,7 @@ def solveRANS(r_DNS,mu_DNS): #(mesh,r_DNS,mu_DNS,compressCorrection,solveTempera
 
         # Solve temperature:  d/dy[(lam+mut/PrT)dTdy] = -VolQ/ReTau/Pr
         if solveTemperatureEq == 1:       
-            r, mu, T   = solveTemperature(T,r,mu,mut,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol)
+            r, mu, T   = solveTemperature(T,r,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol)
 
         # Solve turbulence model to calculate eddy viscosity 
         if   turbModel == "Cess":   mut        = Cess(r,mu,ReTau,mesh,compressCorrection)
@@ -71,8 +50,7 @@ def solveRANS(r_DNS,mu_DNS): #(mesh,r_DNS,mu_DNS,compressCorrection,solveTempera
 
         # Solve momentum equation:  0 = d/dy[(mu+mut)dudy] - 1
         # diffusion matrix: mueff*d2phi/dy2 + dmueff/dy dphi/dy    
-        A = np.einsum('i,ij->ij', mesh.ddy@(mu + mut), mesh.ddy) \
-          + np.einsum('i,ij->ij', mu + mut, mesh.d2dy2)
+        A = np.einsum('i,ij->ij', mesh.ddy@(mu + mut), mesh.ddy) + np.einsum('i,ij->ij', mu + mut, mesh.d2dy2)
 
         # Solve 
         u_old = u.copy()
@@ -86,33 +64,3 @@ def solveRANS(r_DNS,mu_DNS): #(mesh,r_DNS,mu_DNS,compressCorrection,solveTempera
     print("iteration: ",iterations, ", Residual(u) = ", residual)
     
     return u, T, r, mu, mut, k, e, om
-    
-def solveTemperature(T,r,mu,mut): #,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol):
-    
-    import numpy as np
-        
-    n = mesh.nPoints
-    
-    # molecular thermal conductivity: 
-    lam = np.power(T, expLam)/(ReTau*Pr)   
-    
-    # turbulent Prandtl: assume = 1
-    Prt = np.ones(n)                          
-
-    # diffusion matrix: lamEff*d2phi/dy2 + dlamEff/dy dphi/dy
-    A = np.einsum('i,ij->ij', mesh.ddy@(lam + mut/Prt), mesh.ddy) + np.einsum('i,ij->ij', lam + mut/Prt, mesh.d2dy2)
-
-    # Isothermal BC
-    T[0] = T[-1] = 1              
-    
-    # source term
-    b = -Qvol*np.ones(n-2)/(ReTau*Pr)
-
-    # Solve
-    T = solveEqn(T,A,b,0.95)
-
-    # calculate density and viscosity from temperature
-    r  = np.power(T, expRho)
-    mu = np.power(T, expMu)/ReTau
-    
-    return r, mu, T

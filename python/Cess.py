@@ -35,30 +35,29 @@
 #
 
 
-def Cess(r,mu,ReT,mesh,compFlag):
+def Cess(r,mu,ReTau,mesh,compressibleCorrection):
 
     import numpy as np
-    
-    n     = np.size(r)
-    y     = mesh.y
-    d     = np.minimum(y, 2.0-y)
-    Retau = np.ones(n)*ReT
-    yplus = d*ReT
+
+    d = np.minimum(mesh.y, mesh.y[-1]-mesh.y) 
 
     # Model constants
     kappa   = 0.426
     A       = 25.4
-    
-    # Replacing yplus,Ret with ystar, Rets, respectively
-    if compFlag == 1:
-        yplus = yplus*np.sqrt(r)/mu*mu[0]   # because mu is divided by ReT 
-        Retau = np.sqrt(r/r[0])/(mu/mu[0])*ReT
 
-    df = 1 - np.exp(-yplus/A)
-    t1 = np.power(2*d-d*d, 2)
-    t2 = np.power(3-4*d+2*d*d, 2)
-    mueffDivMue = 0.5*np.power(1 + 1/9*np.power(kappa*Retau, 2)*(t1*t2)*df*df, 0.5) - 0.5
-    return mueffDivMue*mu
+    if compressibleCorrection == 1:
+        ReTauArr = np.sqrt(r/r[0])/(mu/mu[0])*ReTau
+        yplus = d*ReTauArr
+    else: 
+        ReTauArr = np.ones(mesh.nPoints)*ReTau
+        yplus = d*ReTauArr
+        
+    df  = 1 - np.exp(-yplus/A)
+    t1  = np.power(2*d-d*d, 2)
+    t2  = np.power(3-4*d+2*d*d, 2)
+    mut = 0.5*np.power(1 + 1/9*np.power(kappa*ReTauArr, 2)*(t1*t2)*df*df, 0.5) - 0.5
+    
+    return mut*mu
 
 
 

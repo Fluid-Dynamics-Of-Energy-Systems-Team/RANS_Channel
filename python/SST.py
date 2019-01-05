@@ -51,12 +51,12 @@
 
 
 
-def KOmSST(u,k,om,r,mu,mesh,compFlag):
-
+def SST(u,k,om,r,mu,mesh,compressibleCorrection):
+    
     import numpy as np
     from solveEqn import solveEqn
-
-    n = np.size(r)
+    
+    n = mesh.nPoints
 
     # model constants
     sigma_k1  = 0.85
@@ -78,7 +78,7 @@ def KOmSST(u,k,om,r,mu,mesh,compFlag):
     dkdy  = mesh.ddy@k
     domdy = mesh.ddy@om
     
-    wallDist = np.minimum(mesh.y, 2-mesh.y)
+    wallDist = np.minimum(mesh.y, mesh.y[-1]-mesh.y) 
     wallDist = np.maximum(wallDist, 1.0e-8)
 
 
@@ -105,74 +105,65 @@ def KOmSST(u,k,om,r,mu,mesh,compFlag):
     zeta = np.minimum(1.0/om, a1/(strMag*bF2))
     mut = r*k*zeta
     mut = np.minimum(np.maximum(mut,0.0),100.0)
-
+    
     # ---------------------------------------------------------------------
     # om-equation
-    #   0 = alpha rho/mut Pk - (betar rho om^2) 
-    #               + fd*ddy[mueff*d(fs*om)dy] + (1-BF1) CDkom
     
     # effective viscosity
-    if compFlag >= 1:
-        mueff = (mu + sigma_om*mut)/np.sqrt(r)   
-        fs = np.power(r, 0.5)
+    if compressibleCorrection == 1:
+        mueff = (mu + sigma_om*mut)/np.sqrt(r)
+        fs    = np.sqrt(r)
     else:
-        mueff = mu + sigma_om*mut              
-        fs = np.ones(n)
+        mueff = mu + sigma_om*mut
+        fs    = np.ones(n)
 
     # diffusion matrix: mueff*d2()/dy2 + dmueff/dy d()/dy
-    A = np.einsum('i,ij->ij',mueff, mesh.d2dy2) + np.einsum('i,ij->ij', mesh.ddy@mueff, mesh.ddy)
+    A = np.einsum('i,ij->ij', mueff, mesh.d2dy2) \
+      + np.einsum('i,ij->ij', mesh.ddy@mueff, mesh.ddy)
     
     # implicitly treated source term
-    for i in range(1,n-1):
-        A[i,i] = A[i,i] - beta[i]*r[i]*om[i]/fs[i]
-    
+    np.fill_diagonal(A, A.diagonal() - beta*r*om/fs)
+
     # Right-hand-side
-    b = -alfa[1:n-1]*r[1:n-1]*strMag[1:n-1]*strMag[1:n-1] - (1-bF1[1:n-1])*CDkom[1:n-1]
-#    b = b[1:n-1]
+    b = -alfa[1:-1]*r[1:-1]*strMag[1:-1]*strMag[1:-1] - (1-bF1[1:-1])*CDkom[1:-1]
     
     # Wall boundary conditions
-    om[0  ] = 60.0*mu[0  ]/beta_1/r[0  ]/wallDist[1  ]/wallDist[1  ]
-    om[n-1] = 60.0*mu[n-1]/beta_1/r[n-1]/wallDist[n-2]/wallDist[n-2]
+    om[0 ] = 60.0*mu[0 ]/beta_1/r[0 ]/wallDist[1 ]/wallDist[1 ]
+    om[-1] = 60.0*mu[-1]/beta_1/r[-1]/wallDist[-2]/wallDist[-2]
 
     # Solve
     om = solveEqn(om*fs, A, b, underrelaxOm)/fs
-    om[1:n-1] = np.maximum(om[1:n-1], 1.e-12)
-    
-    
+    om[1:-1] = np.maximum(om[1:-1], 1.e-12)
     
     # ---------------------------------------------------------------------
-    # k-equation
-    #    0 = Pk - (beta_star rho k om) + fd*ddy[mueff*d(fs*k)dy]
+    # k-equation    
     
-	# effective viscosity
-    if compFlag == 1:
-        mueff = (mu + sigma_k*mut)/np.sqrt(r)   
-        fs = r   
-        fd = 1/np.sqrt(r)
-    if compFlag == 2:
-        mueff = (mu + sigma_k*mut)/r         
-        fs = r   
-        fd = np.ones(n)
-    else: 
-        mueff = mu + sigma_k*mut        
-        fs = np.ones(n)   
-        fd = np.ones(n)
+    # effective viscosity
+    if compressibleCorrection == 1:
+        mueff = (mu + sigma_k*mut)/np.sqrt(r)
+        fs    = r
+        fd    = np.sqrt(r)
+    else:
+        mueff = mu + sigma_k*mut
+        fs    = np.ones(n)
+        fd    = np.ones(n)
 
-       
     # diffusion matrix: mueff*d2()/dy2 + dmueff/dy d()/dy
-    A = np.einsum('i,ij->ij',mueff*fd, mesh.d2dy2) + np.einsum('i,ij->ij', (mesh.ddy@mueff)*fd, mesh.ddy)
+    A = np.einsum('i,ij->ij', mueff*fd, mesh.d2dy2) \
+      + np.einsum('i,ij->ij', (mesh.ddy@mueff)*fd, mesh.ddy)
 
     # implicitly treated source term
-    for i in range(1,n-1):
-        A[i,i] = A[i,i] - betaStar*r[i]*om[i]/fs[i]
-    
+    np.fill_diagonal(A, A.diagonal() - betaStar*r*om/fs)
+
     # Right-hand-side
     Pk = np.minimum(mut*strMag*strMag, 20*betaStar*k*r*om)
-    b  = -Pk[1:n-1]
+    b  = -Pk[1:-1]
+    
+    # Wall boundary conditions
+    k[0] = k[-1] = 0.0
     
     # Solve
     k = solveEqn(k*fs, A, b, underrelaxK)/fs
-    k[1:n-1] = np.maximum(k[1:n-1], 1.e-12)
+    k[1:-1] = np.maximum(k[1:-1], 1.e-12)
 
-
-    return k,om,mut
+    return mut,k,om
