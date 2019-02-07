@@ -38,7 +38,7 @@ def solveRANS(r_DNS,mu_DNS,mesh,turbModel,compressCorrection,solveTemperatureEq,
 
         # Solve temperature:  d/dy[(lam+mut/PrT)dTdy] = -VolQ/ReTau/Pr
         if solveTemperatureEq == 1:       
-            r, mu, T   = solveTemperature(T,r,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol)
+            r, mu, T   = solveTemperature(T,r,mut,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol)
 
         # Solve turbulence model to calculate eddy viscosity 
         if   turbModel == "Cess":   mut        = Cess(r,mu,ReTau,mesh,compressCorrection)

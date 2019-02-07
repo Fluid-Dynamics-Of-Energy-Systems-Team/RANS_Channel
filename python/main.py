@@ -42,7 +42,7 @@ import linecache
 # constReTauStar ... constant semi-local Reynolds number, rho and mu variable
 # gasLike        ... gas-like fluid behaviour
 # liquidLike     ... liquid-like fluid behaviour
-casename = 'liquidLike'
+casename = 'constReTauStar'
 
 # -----  choose turbulence model  -----
 # 'Cess'... Cess, R.D., "A survery of the literature on heat transfer in 
@@ -105,15 +105,15 @@ mu[0] = mu[-1] = 1.0/ReTau
 
 ## ------------------------------------------------------------------------
 # solve RANS 1 (model 1)
-turbModel          = "Cess"    # turbulence model
+turbModel          = "V2F"    # turbulence model
 compressCorrection = 0       # corrections for varying properties
-solveTemperatureEq = 0       # if not temp equation solved then use rho and mu from DNS 
+solveTemperatureEq = 1       # if not temp equation solved then use rho and mu from DNS 
 u1,T1,r1,mu1,mut1,k1,e1,om1 = solveRANS(r,mu,mesh,turbModel,compressCorrection,solveTemperatureEq,Pr,ReTau,expLam,expRho,expMu,Qvol)
 
 # solve RANS 2 (model 2)
-turbModel          = "Cess"    # turbulence model
+turbModel          = "V2F"    # turbulence model
 compressCorrection = 1       # corrections for varying properties
-solveTemperatureEq = 0       # if not temp equation solved then use rho and mu from DNS 
+solveTemperatureEq = 1       # if not temp equation solved then use rho and mu from DNS 
 u2,T2,r2,mu2,mut2,k2,e2,om2 = solveRANS(r,mu,mesh,turbModel,compressCorrection,solveTemperatureEq,Pr,ReTau,expLam,expRho,expMu,Qvol)
 
     

@@ -67,9 +67,9 @@ def V2F(u,k,e,v2,r,mu,mesh,compressibleCorrection):
     C2   = 0.3
 
     # Relaxation factors
-    underrelaxK  = 0.8
-    underrelaxE  = 0.8
-    underrelaxV2 = 0.8
+    underrelaxK  = 0.6
+    underrelaxE  = 0.6
+    underrelaxV2 = 0.6
 
     # Time and length scales, eddy viscosity and turbulent production
     Tt  = np.maximum(k/e, Ct*np.power(mu/(r*e), 0.5))

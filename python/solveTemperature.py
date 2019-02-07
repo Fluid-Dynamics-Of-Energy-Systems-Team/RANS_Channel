@@ -5,10 +5,10 @@ Created on Fri Jan  4 14:15:36 2019
 @author: gjoterorodrigu
 """
 
-def solveTemperature(T,r,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol):
+def solveTemperature(T,r,mut,mesh,Pr,ReTau,expLam,expRho,expMu,Qvol):
     
     import numpy as np
-        
+    from solveEqn import solveEqn    
     n = mesh.nPoints
     
     # molecular thermal conductivity: 
