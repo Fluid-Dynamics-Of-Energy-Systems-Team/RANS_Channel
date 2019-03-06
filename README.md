@@ -12,7 +12,7 @@ The codes solve the Reynolds-averaged Navier-Stokes equaitons for a fully develo
 
 They are available as
 * matlab (matlab/main.m) and
-* python source in form of a jupyter notebook: [main.ipynb](https://github.com/Fluid-Dynamics-Of-Energy-Systems-Team/RANS_Channel/blob/master/main.ipynb) or using the [nbviewer](https://nbviewer.jupyter.org/github/Fluid-Dynamics-Of-Energy-Systems-Team/RANS_Channel/blob/master/main.ipynb)
+* python source in form of a jupyter notebook: [main.ipynb](https://github.com/Fluid-Dynamics-Of-Energy-Systems-Team/RANS_Channel/blob/master/main.ipynb) (might take some time to load) or using the [nbviewer](https://nbviewer.jupyter.org/github/Fluid-Dynamics-Of-Energy-Systems-Team/RANS_Channel/blob/master/main.ipynb)
 
 ## Requirements
 
