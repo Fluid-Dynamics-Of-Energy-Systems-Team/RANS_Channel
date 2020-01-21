@@ -1,9 +1,10 @@
 %**************************************************************************
-%       Implementation of k-epsilon MK model
+%       Implementation of k-epsilon Abe model
 %       Reference,
-%       Myong, H.K. and Kasagi, N., "A new approach to the improvement of
-%       k-epsilon turbulence models for wall bounded shear flow", JSME 
-%       Internationla Journal, 1990. 
+%       Abe, K. and Kondoh, T., "A new turbulence model for 
+%       predicting fluid flow and heat transfer in separating and 
+%       reattaching flows--1. Flow field calculations", 
+%       Int. J. Heat and Mass Transfer, 1994
 %**************************************************************************
 % An improved near-wall k-epsilon turbulence model that considers two 
 % characteristics lenght scale for dissipation rate.
@@ -54,33 +55,8 @@ function [k,e,mut] = Abe(u,k,e,r,mu,ReT,mesh,compFlag)
 
     n        = size(r,1);
     y        = mesh.y;
-   	wallDist = min(y, 2-y);
-% 
-%     if (bulk)
-%         tv       = (mesh.ddy*u).*mu;
-%         %ut       = sqrt(tv(1)/r(1)/2-tv(end)/r(end)/2);
-%         ut       = sqrt(-tv(end)/r(end));
-%         Retau    = ReT*ut;
-%         if(compFlag==1)
-%             if(iter>200)
-%                 yplus = wallDist.*Retau.*sqrt(r/r(end))./(mu/mu(end));
-%             else
-%                 yplus = wallDist.*ReT.*sqrt(r/r(end))./(mu/mu(end));
-%             end
-%         else
-%             if(iter>200)
-%                 yplus = wallDist.*Retau;
-%             else
-%                 yplus = wallDist.*ReT;
-%             end
-%         end
-%     else
-        if(compFlag==1)
-            yplus = wallDist*ReT.*sqrt(r/r(1))./(mu/mu(1));
-        else
-            yplus = wallDist*ReT;
-        end
-%     end
+    wallDist = min(y, 2-y);
+
     % Model constants
     cmu  = 0.09; 
     sigk = 1.4; 
@@ -104,9 +80,6 @@ function [k,e,mut] = Abe(u,k,e,r,mu,ReT,mesh,compFlag)
     mut  = r*cmu.*fmue.*k.^2./e;
     mut(2:n-1) = min(max(mut(2:n-1),1.0e-10),100.0);
     
-%        plot(y,u-)
-%     drawnow
-
     % ---------------------------------------------------------------------
     % Turbulent production
     dudy = mesh.ddy*u;
