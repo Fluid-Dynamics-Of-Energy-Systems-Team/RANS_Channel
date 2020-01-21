@@ -48,6 +48,9 @@ casename = 'constReTauStar';
 %           aerodynamic flows", AIAA 93-2906, 1993.
 % 'V2F' ... Medic, G. and Durbin, P.A., "Towards improved prediction of heat 
 %           transfer on turbine blades", ASME, J. Turbomach. 2012.
+% 'ABE' ... Abe, K. and Kondoh, T., "A new turbulence model for predicting 
+%           fluid flow and heat transfer in separating and reattaching flows--1.
+%           Flow field calculations", Int. J. Heat and Mass Transfer, 1994
 % 'no'  ... without turbulence model; laminar
 turbMod = 'ABE';
 
