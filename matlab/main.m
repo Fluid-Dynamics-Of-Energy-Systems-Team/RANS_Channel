@@ -34,7 +34,7 @@ addpath('turbulenceModels');    % functions of the turbulence models
 % % constReTauStar ... constant semi-local Reynolds number, rho and mu variable
 % % gasLike        ... gas-like fluid behaviour
 % % liquidLike     ... liquid-like fluid behaviour
-casename = 'gasLike';
+casename = 'constReTauStar';
 
 % -----  choose turbulence model  -----
 % 'Cess'... Cess, R.D., "A survery of the literature on heat transfer in 
@@ -49,7 +49,7 @@ casename = 'gasLike';
 % 'V2F' ... Medic, G. and Durbin, P.A., "Towards improved prediction of heat 
 %           transfer on turbine blades", ASME, J. Turbomach. 2012.
 % 'no'  ... without turbulence model; laminar
-turbMod = 'MK';
+turbMod = 'ABE';
 
 % -----  compressible modification  -----
 % 0 ... Conventional models without compressible modifications
@@ -61,13 +61,13 @@ compMod = 1;
 % -----  solve energy equation  ----- 
 % 0 ... energy eq not solved, density and viscosity taken from DNS
 % 1 ... energy eq solved
-solveEnergy = 0;
+solveEnergy = 1;
 
 % -----  channel height  -----
 height = 2;
 
 % -----  number of mesh points  -----
-n = 100;
+n = 120;
 
 % -----  discretization  -----
 % discr = 'finitediff' ... finite difference discretization; 
@@ -83,7 +83,7 @@ n = 100;
 discr = 'finitediff';
 
 % -----  streching factor and stencil for finite difference discretization
-fact = 6;
+fact = 5;
 ns = 1;
 
 
@@ -160,7 +160,7 @@ nuSA = ones(n,1)/ReTau;
 %
 %       Iterate RANS equations
 %
-nmax   = 40000;   tol  = 1.e-8;  % iteration limits
+nmax   = 100000;   tol  = 1.e-8;  % iteration limits
 nResid = 50;                     % interval to print residuals
 
 residual = 1e20; iter = 0;
@@ -199,6 +199,7 @@ while ((residual > tol) && iter<nmax)
     switch turbMod
         case 'V2F';  [k,e,v2,mut] = V2F(u,k,e,v2,r,mu,MESH,compMod);
         case 'MK';   [k,e,mut]    = MK(u,k,e,r,mu,ReTau,MESH,compMod);
+        case 'ABE';   [k,e,mut]    = Abe(u,k,e,r,mu,ReTau,MESH,compMod);
         case 'SST';  [k,om,mut]   = KOmSST(u,k,om,r,mu,MESH,compMod);
         case 'SA';	 [nuSA,mut]   = SA(u,nuSA,r,mu,MESH,compMod);
         case 'Cess';  mut         = Cess(r,mu,ReTau,MESH,compMod);      
