@@ -47,7 +47,7 @@ addpath('radiation');           % functions for the radiative calculations
 %           transfer on turbine blades", ASME, J. Turbomach. 2012.
 % 'DNS' ... without turbulence model; k,e,u taken from DNS solution
 % 'NO'  ... without turbulence model; laminar
-turbMod = 'SST';
+turbMod = 'ABE';
 
 
 % -----  choose flux model  -----
@@ -58,7 +58,7 @@ turbMod = 'SST';
 % NO  - 'PRT'  ... Myong, H.K. and Kasagi, N., "A new approach to the improvement of
 %           k-epsilon turbulence models for wall bounded shear flow", JSME 
 %           Internationla Journal, 1990.
-turbPrT = 'NO';
+turbPrT = 'DWX';
 
 % 0 ...  constant kP
 % 1 ...  variable kP
@@ -67,8 +67,8 @@ kPMod  = 0;
 % 0 ...  constant rho
 % 1 ...  variable rho
 % 2 ...  rho from DNS
-varDens= 0;
-underrelaxU=0.7;
+varDens= 3;
+underrelaxU=0.9;
 
 % -----  compressible modification  -----
 % 0 ... Conventional models without compressible modifications
@@ -88,7 +88,7 @@ underrelaxT = 0.9;
 % 1 ... radiation eq solved every stepRad energy equation iterations
 % 2 ... radiative heat source taken from DNS calculations (radCase)
 solveRad = 0;
-radCase  = 'b';
+radCase  = 'br';
 
 % -----  choose Radiation model modification -----
 % 0 ...  Conventional t2 - et equations
@@ -106,8 +106,16 @@ nP     = 20;                    % number of azimuthal angles
 Tc     = 573;
 Th     = 955;
 T0     = 1.5;
-Pr     = 1.0;
-ReT    = 180;
+% Pr     = 1.0;
+Pr     = 0.71;
+
+% -----  choose based on Re bulk or wall -----
+% 0 ...  wall
+% 1 ...  bulk
+bulkMod = 0;
+%
+% ReT    = 3750;
+ReT = 950;
 
 % -----  discretization  -----
 % discr = 'finitediff' ... finite difference discretization; 
@@ -135,6 +143,7 @@ switch varDens
     case 0; casename = 'constant';
     case 1; casename = 'vardens';          
     case 2; casename = 'nodensity';
+    case 3; casename = 'gasLike';
 end
 
 %% ------------------------------------------------------------------------
@@ -152,8 +161,12 @@ end
 
 u      = zeros(n,1);
 uT     = zeros(n,1);
+T     = zeros(n,1);
+
 T      = 1 - MESH.y/height; 
-T(1)   = 1;
+% T(1)   = 1.0;
+T(1)   = 0.0;
+
 T(end) = 0;
 
 % radiative quantities
@@ -248,6 +261,8 @@ k    = 0.1*ones(n,1); k(1) = 0.0; k(n) = 0.0;
 e    = 0.001*ones(n,1);
 et   = 0.001*ones(n,1);
 v2   = 2/3*k;
+f = zeros(n,1);
+
 om   = ones(n,1);
 mut  = zeros(n,1);
 alphat  = zeros(n,1);
@@ -258,7 +273,7 @@ nuSA = mu./r; nuSA(1) = 0.0; nuSA(n) = 0.0;
 %
 %       Iterate RANS equations
 %
-nmax   = 1000000;   tol  = 1.e-8;  % iteration limits
+nmax   = 10000000;   tol  = 1.e-8;  % iteration limits
 nResid = 50;                       % interval to print residuals
 
 residual = 1e20; residualT = 1e20; residualQ = 1e20; iter = 0;
@@ -282,8 +297,10 @@ while (residual > tol || residualT > tol || residualQ > tol*1e3) && (iter<nmax)
 
     % Solve turbulence model to calculate eddy viscosity
     switch turbMod
-        case 'V2F';   [k,e,v2,mut] = V2F(u,k,e,v2,r,mu,MESH,compMod);
-        case 'MK';    [k,e,mut]    = MK(u,k,e,r,mu,ReT,MESH,compMod,iter);
+        case 'V2F';   [k,e,v2,f,mut] = V2F(u,k,e,v2,f,r,mu,MESH,compMod);
+        case 'MK';    [k,e,mut]    = MK(u,k,e,r,mu,ReT,MESH,compMod,bulkMod,iter);
+        case 'ABE';    [k,e,mut]    = ABE(u,k,e,r,mu,ReT,MESH,compMod,bulkMod,iter);
+
         case 'SST';   [k,om,mut]   = KOmSST(u,k,om,r,mu,MESH,compMod);
         case 'SA';    [nuSA,mut]   = SA(u,nuSA,r,mu,MESH,compMod);
         case 'Cess';  mut          = Cess(r,mu,ReT,MESH,compMod);
@@ -298,7 +315,8 @@ while (residual > tol || residualT > tol || residualQ > tol*1e3) && (iter<nmax)
         switch turbPrT
             case 'V2T'; [uT,lam] = V2T(uT,k,e,v2,mu,ReT,Pr,Pl,T,kP,r,MESH,RadMod);
             case 'PRT'; [lam,alphat] = PRT( mu,mut,alpha,T,r,qy,ReT,Pr,Pl,MESH,RadMod);
-            case 'DWX'; [lam,t2,et,alphat] = DWX_nongrey(T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG,ReT,Pr,Pl,MESH,RadMod,kPMod,cP,cP2,2.34,1.5,0.1,'P',Th,Tc,T0);
+%             case 'DWX'; [lam,t2,et,alphat] = DWX_nongrey(T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG,ReT,Pr,Pl,MESH,RadMod,kPMod,cP,cP2,2.34,1.5,0.1,'P',Th,Tc,T0);
+            case 'DWX'; [lam,t2,et,alphat] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG,ReT,Pr,Pl,MESH,RadMod,kPMod,cP);
             otherwise;  lam = mu./Pr + (mut./0.9);   
         end
         T_old = T;
@@ -311,7 +329,8 @@ while (residual > tol || residualT > tol || residualQ > tol*1e3) && (iter<nmax)
          % source term: -Qt/RePr + duT/dy
          switch turbPrT
              case 'V2T'; b = QR(2:n-1)./(ReT*Pr*Pl) + turbQ(2:n-1);
-             otherwise;  b = QR(2:n-1)./(ReT*Pr*Pl);
+%              otherwise;  b = QR(2:n-1)./(ReT*Pr*Pl);
+             otherwise;  b = -75./(ReT*Pr);
          end
          
          % Solve
@@ -352,10 +371,12 @@ while (residual > tol || residualT > tol || residualQ > tol*1e3) && (iter<nmax)
             + bsxfun(@times, MESH.ddy*mueff, MESH.ddy);
         
         % Right hand side
-        %b = -ones(n-2,1);
-        %bulk  = trapz(MESH.y,u)/2;
-        b     = -ones(n-2,1);%(0.99*b_old + (bulk-1)*0.005);
-        
+        if (bulkMod)
+            bulk  = trapz(MESH.y,u)/2;
+            b     = (0.99*b_old + (bulk-1)*0.005);
+        else
+            b = -ones(n-2,1);
+        end
         % Solve
         u_old = u;
         u = underrelaxU*u+(1-underrelaxU)*solveEq(u,A,b,1);

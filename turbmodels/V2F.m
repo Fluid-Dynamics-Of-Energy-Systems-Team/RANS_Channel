@@ -47,10 +47,9 @@
 %   e           turbulent kinetic energy dissipation rate
 %   v2          wall normal velocity fluctuation
 
-function [k,e,v2,mut] = V2F(u,k,e,v2,r,mu,mesh,compFlag)
+function [k,e,v2,f,mut] = V2F(u,k,e,v2,f,r,mu,mesh,compFlag)
 
     n = size(r,1);    
-    f = zeros(n,1);
 
     % Model constants
     cmu  = 0.22; 
@@ -84,7 +83,7 @@ function [k,e,v2,mut] = V2F(u,k,e,v2,r,mu,mesh,compFlag)
     
     % ---------------------------------------------------------------------
     % f-equation 
-    %    L^2 d2fdy2 - f = [C1 -6v2/k -2/3(C1-1)]/T -C2 Pk/(rho k)
+    %    L^2 d2fdy2 - f = [(C1 -6)v2/k -2/3(C1-1)]/T -C2 Pk/(rho k)
     
     % implicitly treated source term
     A = mesh.d2dy2;

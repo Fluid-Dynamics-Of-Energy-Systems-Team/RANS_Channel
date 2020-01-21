@@ -104,14 +104,14 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
     underrelaxet  = 0.8;  
 
     % Time and length scales, eddy diffusivity and turbulent production
-    Reps   = (r.*mu.*e).^(1./4)./(r.*mu).*wallDist;
-    Rturb  = r.*(k.^2)./(mu.*e);
+    Reps   = ((mu./r).*e).^(1./4)./(mu./r).*wallDist;
+    Rturb  = (k.^2)./((mu./r).*e);
     
     % Model damping functions
-    fd1    = 1 - exp(-(Reps./1.7)).^2;
-    feps   = 1 - 0.3*exp(-(Rturb/6.5).^2);
+    fd1    = 1 - exp(-(Reps./1.7)).^2;               %DENG
+    feps   = 1 - 0.3*exp(-(Rturb/6.5).^2);           %DENG
     fw0    = exp( -(Rturb./80) .^2);
-    fd2    = (1/Cd2)*(Ce2*feps - 1).*(1 - exp(-Reps./5.8).^2);
+    fd2    = (1/Cd2)*(Ce2*feps - 1).*(1 - exp(-Reps./5.8).^2); %DENG
     
     % turbulent diffusivity and production
     if RadMod == 1
@@ -119,26 +119,31 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
     else
         er = zeros(n,1);
     end
-    R = 0.5*(t2./(cret.*et+cr11.*er).*e./k);
-    
-    fl  = (fw0.*0.1./(Rturb.^(1./4))) + (1-exp(-yplus/30)).^2;
-    fl(1:n-1:n) = 0.0;
-   
-    
-%     fl  = (1-exp(-Reps./16)).^2.*(1+3./(Rturb.^(3./4)));
+    %R = 0.5*(t2./(cret.*et+cr11.*er).*e./k); ORIGINAL SIMONE
+%     R = (t2./(et))./(k./e); %DENG
+    R = (t2./(2*et))./(k./e); %DENG
+        
+%     fl  = (fw0.*0.1./(Rturb.^(1./4))) + (1-exp(-yplus/30)).^2; %ORIGINAL SIMONE
 %     fl(1:n-1:n) = 0.0;
     
-    alphat = max(r.*Cl.*fl.*k.^2./e.*(2*R).^m,0.0);
     
-    Pt  = alphat.*(mesh.ddy*T).^2;
-
+    fl  = (1-exp(-Reps./16)).^2.*(1+3./(Rturb.^(3./4)));
+    fl(1:n-1:n) = 0.0;
+    
+    alphat = max(Cl.*fl.*k.^2./e.*(2*R).^m,0.0); 
+    
+%     Pt  = alphat.*(mesh.ddy*T).^2; %ORIGINAL
+    Pt  = r.*alphat.*(mesh.ddy*T).^2; 
+    
     % ---------------------------------------------------------------------
     % et-equation
     %    0 = Cp1 fp1 sqrt(e et/ (k t2)) Pt - Cd1 fd1 et^2 / t2 
     %        - Cd2 fd2 e et / t2 + ddy[(alpha+alphat/sigmaet)detdy]    
     
     % effective diffusivity
-    lam = alpha./r + alphat./siget./r;
+    %lam = alpha./r + alphat./siget./r; %ORIGINAL SIMONE
+    lam = alpha + alphat.*r./siget; %alpha is lambda/cp
+
     
     % diffusion matrix: lam*d2()/dy2 + dlam/dy d()/dy
     A =   bsxfun(@times, lam, mesh.d2dy2) ... 
@@ -146,7 +151,10 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
 
     % implicitly treated source term : -Cd2 fd2 e/t2 - Cd1 fd1 et^2 / t2 
     for i=2:n-1
-        A(i,i) = A(i,i) - Cd2*fd2(i)*e(i)/k(i) - Cd1*fd1(i)*(et(i)+cr11.*er(i))/t2(i);
+%         A(i,i) = A(i,i) - Cd2*fd2(i)*e(i)/k(i) - Cd1*fd1(i)*(et(i)+cr11.*er(i))/t2(i); ORIGINAL SIMONE
+        A(i,i) = A(i,i) - r(i)*Cd2*fd2(i)*e(i)/k(i)- r(i)*Cd1*fd1(i)*et(i)/t2(i);
+%         A(i,i) = A(i,i) - Cd2*fd2(i)*e(i)/k(i)- Cd1*fd1(i)*et(i)/t2(i);
+
     %    A(i,i) = A(i,i) - Cd2*fd2(i)*e(i)/k(i).*r(i) - Cd1*fd1(i)*et(i)/t2(i).*r(i);
     end
         
@@ -192,8 +200,10 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
     end
     
     % Boundary conditions
-    et(1) = alpha(1)*(sqrt(t2(2)  )/(mesh.y(2)-mesh.y(1  ))).^2;
-    et(n) = alpha(n)*(sqrt(t2(n-1))/(mesh.y(n)-mesh.y(n-1))).^2;
+    et(1) = alpha(1)*(sqrt(t2(2)  )/(mesh.y(2)-mesh.y(1  ))).^2;  %ORIGINAL SIMONE
+    et(n) = alpha(n)*(sqrt(t2(n-1))/(mesh.y(n)-mesh.y(n-1))).^2;  %ORIGINAL SIMONE
+%     et(1) = alpha(1)/r(1)*(sqrt(t2(2)  )/(mesh.y(2)-mesh.y(1  ))).^2;
+%     et(n) = alpha(n)/r(n)*(sqrt(t2(n-1))/(mesh.y(n)-mesh.y(n-1))).^2;
     
     %solve
     et = solveEq(et, A, b, underrelaxet);
@@ -204,7 +214,9 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
     %    0 = 2 Pt - 2 et + ddy[(alpha+alphat/sigmat2) dt2dy] - Rad
     
     % effective diffusivity
-    lam = alpha + alphat./sigt2;
+%     lam = alpha + alphat./sigt2; %ORIGINAL SIMONE
+    lam = alpha + alphat./sigt2.*r; %EDITED STEPHAN
+    
         
     % diffusion matrix: lam*d2()/dy2 + dlam/dy d()/dy
     A =   bsxfun(@times, lam, mesh.d2dy2) ... 
@@ -212,7 +224,9 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
     
     % implicitly treated source term
     for i=2:n-1
-        A(i,i) = A(i,i) - 2*et(i)/t2(i);
+%         A(i,i) = A(i,i) - 2*et(i)/t2(i); %ORIGINAL
+         A(i,i) = A(i,i) - 2*et(i)/t2(i); %STEPHAN
+
     end
     
     % radiative implicit source modification
@@ -232,7 +246,7 @@ function [ lam,t2,et,alphat ] = DWX_working( T,Em,G,r,u,t2,et,k,e,alpha,mu,kP,kG
     % Solve
     t2 = solveEq(t2, A, b, underrelaxt2);
     
-    lam = alpha + alphat;
+    lam = alpha + alphat.*r;
 
 end
 

@@ -1,0 +1,11 @@
+
+
+t_tau = 2/(ReT*Pr);
+tau_u = k./e/(1/ReT);
+tau_t = t2./(2*et)/(1/ReT);
+Tplus = T/t_tau;
+plot_et = et*(1/ReT)/t_tau^2;
+plot_t2 = sqrt(t2)/t_tau;
+
+Table = table(ypl,y,upl,k,mut,e,t2,et,plot_et,plot_t2,tau_u,tau_t,Tplus, 'VariableNames', { 'yplus','y','uplus','k', 'mut','eps','kt','epst','eps_scaled','kt_scaled', 'tau_u','tau_t','Tplus'} );
+writetable(Table, '../RANS_pipe/notebooks/validation_data/matlab_code/DengValidation_Matlab4.txt');

@@ -50,12 +50,12 @@
 %   e           solved turbulent kinetic energy dissipation rate per unit
 %               volume
 
-function [k,e,mut] = MK(u,k,e,r,mu,ReT,mesh,compFlag,bulk,iter)
+function [k,e,mut] = ABE(u,k,e,r,mu,ReT,mesh,compFlag,bulk,iter)
 
     n        = size(r,1);
     y        = mesh.y;
    	wallDist = min(y, 2-y);
-    
+
     if (bulk)
         tv       = (mesh.ddy*u).*mu;
         %ut       = sqrt(tv(1)/r(1)/2-tv(end)/r(end)/2);
@@ -81,29 +81,25 @@ function [k,e,mut] = MK(u,k,e,r,mu,ReT,mesh,compFlag,bulk,iter)
             yplus = wallDist*ReT;
         end
     end
-  
-
     % Model constants
     cmu  = 0.09; 
     sigk = 1.4; 
-    sige = 1.3; 
-    Ce1  = 1.4; 
-    Ce2  = 1.8;
+    sige = 1.4; 
+    Ce1  = 1.5; 
+    Ce2  = 1.9;
     
     % Relaxation factor
     underrelaxK  = 0.8;
     underrelaxE  = 0.8;
-    %% SECTION TITLE
-    % DESCRIPTIVE TEXT
 
     % ---------------------------------------------------------------------
     % eddy viscosity
     ReTurb = r.*(k.^2)./(mu.*e);
-    f2     = (1-2/9*exp(-(ReTurb/6).^2)).*(1-exp(-yplus/5)).^2;
-    fmue   = (1-exp(-yplus/70)).*(1.0+3.45./(ReTurb.^0.5));   
+    y_star = ((e.*mu./r).^0.25).*wallDist./(mu./r);
+    fmue = ((1-exp(-y_star/14)).^2).*(1+5./(ReTurb.^0.75).*exp(-(ReTurb/200).^2));
     fmue(1:n-1:n) = 0.0;
-    
-    mut  = cmu*fmue.*r./e.*k.^2;
+    feps = (1-exp(-y_star/3.1)).^2.*(1-0.3*exp(-(ReTurb/6.5).^2));
+    mut  = r*cmu.*fmue.*k.^2./e;
     mut(2:n-1) = min(max(mut(2:n-1),1.0e-10),100.0);
 
     
@@ -130,15 +126,15 @@ function [k,e,mut] = MK(u,k,e,r,mu,ReT,mesh,compFlag,bulk,iter)
 
     % Left-hand-side, implicitly treated source term
     for i=2:n-1
-        A(i,i) = A(i,i) - Ce2*f2(i)*r(i)*e(i)/k(i)/fs(i);
+        A(i,i) = A(i,i) - Ce2*feps(i)*r(i)*e(i)/k(i)/fs(i);
     end
 
     % Right-hand-side
     b = -e(2:n-1)./k(2:n-1).*Ce1.*Pk(2:n-1);
     
     % Wall boundary conditions
-    e(1) = mu(1)/r(1)*k(2  )/wallDist(2  )^2;
-    e(n) = mu(n)/r(n)*k(n-1)/wallDist(n-1)^2;
+    e(1) = 2*mu(1)/r(1)*sqrt(k(2  ))/wallDist(2  )^2;
+    e(n) = 2*mu(n)/r(n)*sqrt(k(n-1))/wallDist(n-1)^2;
 
     % Solve eps equation
     e = solveEq(e.*fs, A, b, underrelaxE)./fs;
